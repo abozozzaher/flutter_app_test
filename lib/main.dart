@@ -1,4 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 void main() {
   runApp(const MyApp());
@@ -7,27 +11,11 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
@@ -37,91 +25,161 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatefulWidget {
+class MyHomePage extends StatelessWidget {
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Flutter Demo Home Page'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => QRViewExample()),
+                );
+              },
+              child: const Text('Open QR Scanner'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class QRViewExample extends StatefulWidget {
+  @override
+  State<StatefulWidget> createState() => _QRViewExampleState();
+}
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+class _QRViewExampleState extends State<QRViewExample> {
+  MobileScannerController controller = MobileScannerController();
+  List<String> scannedData = [];
+  final AudioPlayer audioPlayer = AudioPlayer();
+  bool _isDialogShowing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestCameraPermission();
+  }
+
+  Future<void> _requestCameraPermission() async {
+    var status = await Permission.camera.status;
+    if (status.isDenied) {
+      if (await Permission.camera.request().isGranted) {
+        print('Camera permission granted');
+      }
+    }
+    if (status.isPermanentlyDenied) {
+      openAppSettings();
+    }
+  }
+
+  Future<void> _playSound(String path) async {
+    await audioPlayer.play(AssetSource(path));
+  }
+
+  void _showDuplicateDialog(String code) {
+    if (_isDialogShowing) return; // التحقق من عدم إظهار مربع الحوار مسبقًا
+    _isDialogShowing = true; // ضبط المتغير إلى true لإظهار مربع الحوار
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Duplicate Code'),
+          content: Text('The code "$code" has already been scanned.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _isDialogShowing =
+                    false; // إعادة ضبط المتغير إلى false عند إغلاق مربع الحوار
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text('Flutter Demo Home Page'),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const Text('test 1 '),
-          ],
+        title: const Text('QR Scan1ner'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            flex: 1,
+            child: MobileScanner(
+              controller: controller,
+              allowDuplicates: true,
+              onDetect: (barcode, args) async {
+                if (barcode.rawValue == null) {
+                  return;
+                }
+                final String code = barcode.rawValue!;
+                final BarcodeType type = barcode.type;
+
+                if (!scannedData.contains(code)) {
+                  setState(() {
+                    scannedData.add(code);
+                  });
+                  _playSound('assets/sound/scanner-beep.mp3');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Scanned: $code'),
+                      backgroundColor: type == BarcodeFormat.qrCode
+                          ? Colors.blueGrey
+                          : Colors.green,
+                    ),
+                  );
+                } else {
+                  _playSound('assets/sound/beep.mp3');
+                  _showDuplicateDialog(code);
+                }
+              },
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: SingleChildScrollView(
+              child: ListView.builder(
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                itemCount: scannedData.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    title: Text(scannedData[index]),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    audioPlayer.dispose();
+    super.dispose();
+  }
 }
-/*
-
-
-export PATH="$PATH:/Users/zaher-lap-mac/FlutterAll/platform-tools"
-export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-11.jdk/Contents/Home
-export PATH=$JAVA_HOME/bin:$PATH
-export JAVA_OPTS='-XX:+IgnoreUnrecognizedVMOptions --add-modules java.se.ee'
-export PATH=$PATH:/Library/Android/sdk/cmdline-tools/latest/bin
-export PATH="/usr/local/opt/ruby/bin:$PATH"
-export PATH="${HOME}/Library/Android/sdk/tools:${HOME}/Library/Android/sdk/platform-tools:${PATH}"
-export JAVA_HOME="/Applications/Android Studio.app/Contents/jre/Contents/Home"
-
- */
